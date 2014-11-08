@@ -16,6 +16,18 @@ function uniqueId(){
   return process.pid + "." + new Date().getTime() + "." + currentRequestCounter++;
 }
 
+function writeToFilesystem(readStream, fileName, cb){
+  var tempFileName = fileName + ".inproc";
+  var finalFileName = fileName; 
+  var outputStream = fs.createWriteStream(tempFileName);
+
+  readStream.on('end', function(){ outputStream.end(); });
+  outputStream.on('finish', function(){
+    fs.rename(tempFileName, finalFileName, cb);
+  });
+  readStream.pipe(outputStream);
+}
+
 var app = express();
 app.use(morgan('combined'));
 
@@ -31,22 +43,14 @@ app.get('/diagnostic', function(req, res){
 });
 
 app.post('/archive', function(req, res){ 
-  var id = uniqueId();
-  var tempFileName = path.join(config.storageRoot, id + ".inproc");
-  var finalFileName = path.join(config.storageRoot, id + ".complete");
-  var outputStream = fs.createWriteStream(tempFileName);
-
-  outputStream.on('finish', function(){
-    fs.rename(tempFileName, finalFileName, function(err){
-      if (err){
-        res.status(500).send({message:err});
-      } else {
-        res.send({message: "ok"});
-      }
-    });
+  var fileName = path.join(config.storageRoot, uniqueId())
+  writeToFilesystem(req, fileName, function(err){
+    if (err){
+      res.status(500).send({message:err});
+    } else {
+      res.send({message: "ok"});
+    }
   });
-  req.pipe(outputStream);
-  req.on('end', function(){ outputStream.end(); });
 });
 
 
