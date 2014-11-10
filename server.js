@@ -23,21 +23,13 @@ var currentRequestCounter = 0;
  * somewhat discoverable
  */
 function generateFileName(key){
-  if (key){
-    return key +
-      "." +
-      new Date().toString().replace(/ /g, "_") + 
-      "." +
-      process.pid +
-      "." +
-      currentRequestCounter++;
-  } else {
-    return new Date().toString().replace(/ /g, "_") + 
-      "." +
-      process.pid +
-      "." +
-      currentRequestCounter++;
-  }
+  return key +
+    "." +
+    new Date().toString().replace(/ /g, "_") + 
+    "." +
+    process.pid +
+    "." +
+    currentRequestCounter++;
 }
 
 /* Write the contents of the provided stream to the filesystem using
