@@ -76,7 +76,7 @@ app.use(morgan('combined'));
 
 app.get('/diagnostic', function(req, res){
   var diagMessage = {message: "ok"};
-  diagMessage.storageRoot = (config.storageRoot && "set") || "notFound";
+  diagMessage.storage = config.storageSystem
   if (diagMessage.storageRoot === "notFound"){
     diagMessage = error;
     rs.status(500);
@@ -108,11 +108,13 @@ if (config.storageRoot) { // we're gonna use a file system storage location
     log.error("storage root " + config.storageRoot + " not found, exiting");
     process.exit(1);
   }
+  config.storageSystem = "filesystem";
 } else { // otherwise, we're gonna need to have a good s3 config
   if ( ! isS3ConfigValid() ){
     log.error("invalid s3 configuration");
     process.exit(2); 
   }
+  config.storageSystem = "s3";
 }
 
 listenPort = process.env.PORT || 3000;
