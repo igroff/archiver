@@ -7,7 +7,14 @@ var fs              = require('fs');
 var path            = require('path');
 
 var config = {
+  // if set, the path provided will be used to store archived items, if not
+  // set we'll be requiring an s3 configuration
   storageRoot: process.env.STORAGE_ROOT,
+  // if you find yourself running a bunch of these you can set this value
+  // to something different for each instance to make sure you get distinct
+  // file naming. The 'normal' naming algorithm is unlikely to collide, but
+  // this, if set different per instance, will guarantee no collisions.
+  uniqueId: process.env.FILE_UNIQUE_ID | process.pid,
   s3: {
     AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID,
     AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY,
@@ -20,7 +27,7 @@ var currentRequestCounter = 0;
 /* The whole goal of this app is to take data and save it to a persistent 
  * location for long-term storage and reference (archiving). This provides a
  * way of generating a file name that's intended to be both non-conflicting and
- * somewhat discoverable
+ * somewhat discoverable.
  */
 function generateFileName(key){
   return key +
@@ -48,6 +55,12 @@ function writeToFilesystem(inputStream, fileName, cb){
     fs.rename(tempFileName, finalFileName, cb);
   });
   inputStream.pipe(outputStream);
+}
+
+function isS3ConfigValid(){
+  return config.s3.AWS_ACCESS_KEY_ID
+    && config.s3.AWS_SECRET_ACCESS_KEY
+    && config.s3.BUCKET_NAME
 }
 
 /* Write the contents of the provided stream to s3 ( as configured by
@@ -87,16 +100,22 @@ app.post('/archive', function(req, res){
 });
 
 
-// the only thing we do is store incoming data, so you need to have an existing
-// place to put it, if it doesn't exist, we'll log and die
-if (! fs.existsSync(config.storageRoot) ){
-  log.error("storage root " + config.storageRoot + " not found, exiting");
-  process.exit(1);
+if (config.storageRoot) { // we're gonna use a file system storage location
+  // the only thing we do is store incoming data, so you need to have an existing
+  // place to put it, if it doesn't exist, we'll log and die
+  if (! fs.existsSync(config.storageRoot) ){
+    log.error("storage root " + config.storageRoot + " not found, exiting");
+    process.exit(1);
+  }
+} else { // otherwise, we're gonna need to have a good s3 config
+  if ( ! isS3ConfigValid() ){
+    log.error("invalid s3 configuration");
+    process.exit(2); 
+  }
 }
 
-// start up our server
 listenPort = process.env.PORT || 3000;
-log.info("starting app " + process.env.APP_NAME);
+log.info("starting app '" + process.env.APP_NAME + "'");
 log.info("listening on " + listenPort);
 log.debug("config: ", config);
 app.listen(listenPort);
