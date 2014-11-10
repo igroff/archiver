@@ -20,6 +20,7 @@ var config = {
   }
 }
 
+// used to help generate a unique filename for each request
 var currentRequestCounter = 0;
 
 /* The whole goal of this app is to take data and save it to a persistent 
