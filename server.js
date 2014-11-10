@@ -1,6 +1,5 @@
 var express         = require('express');
 var morgan          = require('morgan');
-var connect         = require('connect');
 var log             = require('simplog');
 var fs              = require('fs');
 var path            = require('path');
@@ -72,7 +71,6 @@ function writeToS3(inputStream, fileName, cb){
 
 var app = express();
 app.use(morgan('combined'));
-
 
 app.get('/diagnostic', function(req, res){
   var diagMessage = {message: "ok"};
