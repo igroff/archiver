@@ -35,6 +35,8 @@ function generateFileName(key){
     new Date().toString().replace(/ /g, "_") + 
     "." +
     process.pid +
+    "." + 
+    config.uniqueId +
     "." +
     currentRequestCounter++;
 }
