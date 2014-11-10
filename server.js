@@ -7,25 +7,61 @@ var fs              = require('fs');
 var path            = require('path');
 
 var config = {
-  storageRoot: process.env.STORAGE_ROOT
+  storageRoot: process.env.STORAGE_ROOT,
+  s3: {
+    AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID,
+    AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY,
+    BUCKET: process.env.S3_BUCKET
+  }
 }
 
 var currentRequestCounter = 0;
 
-function uniqueId(){
-  return process.pid + "." + new Date().getTime() + "." + currentRequestCounter++;
+/* The whole goal of this app is to take data and save it to a persistent 
+ * location for long-term storage and reference (archiving). This provides a
+ * way of generating a file name that's intended to be both non-conflicting and
+ * somewhat discoverable
+ */
+function generateFileName(key){
+  if (key){
+    return key +
+      "." +
+      new Date().toString().replace(/ /g, "_") + 
+      "." +
+      process.pid +
+      "." +
+      currentRequestCounter++;
+  } else {
+    return new Date().toString().replace(/ /g, "_") + 
+      "." +
+      process.pid +
+      "." +
+      currentRequestCounter++;
+  }
 }
 
-function writeToFilesystem(readStream, fileName, cb){
+/* Write the contents of the provided stream to the filesystem using
+ * the name specified.  This method writes the file first to a temp location
+ * ( which is a sibling of the final file ) named <fileName>.inproc so that
+ * files that are in the process of being written, or have somehow failed
+ * can be easily identified
+ */
+function writeToFilesystem(inputStream, fileName, cb){
   var tempFileName = fileName + ".inproc";
   var finalFileName = fileName; 
   var outputStream = fs.createWriteStream(tempFileName);
 
-  readStream.on('end', function(){ outputStream.end(); });
+  inputStream.on('end', function(){ outputStream.end(); });
   outputStream.on('finish', function(){
     fs.rename(tempFileName, finalFileName, cb);
   });
-  readStream.pipe(outputStream);
+  inputStream.pipe(outputStream);
+}
+
+/* Write the contents of the provided stream to s3 ( as configured by
+ * the config.s3 object )
+ */
+function writeToS3(inputStream, fileName, cb){
 }
 
 var app = express();
@@ -43,7 +79,12 @@ app.get('/diagnostic', function(req, res){
 });
 
 app.post('/archive', function(req, res){ 
-  var fileName = path.join(config.storageRoot, uniqueId())
+  var appKey = req.query.key || null;
+  if (!appKey){
+    res.status(500).send({message:"need to provide a key in the querystring"});
+    return;
+  }
+  var fileName = path.join(config.storageRoot, generateFileName(appKey))
   writeToFilesystem(req, fileName, function(err){
     if (err){
       res.status(500).send({message:err});
@@ -65,5 +106,5 @@ if (! fs.existsSync(config.storageRoot) ){
 listenPort = process.env.PORT || 3000;
 log.info("starting app " + process.env.APP_NAME);
 log.info("listening on " + listenPort);
-log.info("config: ", config);
+log.debug("config: ", config);
 app.listen(listenPort);
