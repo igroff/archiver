@@ -93,9 +93,9 @@ app.post('/archive', function(req, res){
   var fileName = path.join(config.storageRoot, generateFileName(appKey))
   writeToFilesystem(req, fileName, function(err){
     if (err){
-      res.status(500).send({message:err});
+      return res.status(500).send({message:err});
     } else {
-      res.send({message: "ok"});
+      return res.send({message: "ok"});
     }
   });
 });
