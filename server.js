@@ -62,9 +62,9 @@ function writeToFilesystem(inputStream, fileName, cb){
 }
 
 function isS3ConfigValid(){
-  return config.s3.AWS_ACCESS_KEY_ID
-    && config.s3.AWS_SECRET_ACCESS_KEY
-    && config.s3.BUCKET_NAME
+  return config.s3.accessKey
+    && config.s3.secretAccessKey
+    && config.s3.bucket
 }
 
 /* Write the contents of the provided stream to s3 ( as configured by
