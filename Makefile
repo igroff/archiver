@@ -5,6 +5,9 @@ APP_NAME?=$(shell basename `pwd`)
 watch:
 	DEBUG=true ./node_modules/.bin/supervisor --watch 'src/,./' --ignore "./test"  -e "litcoffee,coffee,js" --exec make run-server
 
+debug:
+	export DEBUG=true && APP_NAME=${APP_NAME} && source ~/.${APP_NAME}.env && node debug server.js
+
 lint:
 	find ./src -name '*.coffee' | xargs ./node_modules/.bin/coffeelint -f ./etc/coffeelint.conf
 	find ./src -name '*.js' | xargs ./node_modules/.bin/jshint 

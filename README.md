@@ -14,3 +14,6 @@ multi-part upload' you'll get the contents in their raw multi-part encoded
 format).  It treats the body of the request (the stuff you POST) as opaque and
 just flat saves it as is.  The goal is to save the data, and anything that isn't
 that is not done as it can only add potential problems.
+
+
+### API
