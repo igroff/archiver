@@ -3,6 +3,7 @@ var morgan          = require('morgan');
 var log             = require('simplog');
 var fs              = require('fs');
 var path            = require('path');
+var AWS             = require('aws-sdk');
 
 var config = {
   // if set, the path provided will be used to store archived items, if not
@@ -14,9 +15,10 @@ var config = {
   // this, if set different per instance, will guarantee no collisions.
   uniqueId: process.env.FILE_UNIQUE_ID | process.pid,
   s3: {
-    AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID,
-    AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY,
-    BUCKET: process.env.S3_BUCKET
+    accessKey: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    bucket: process.env.S3_BUCKET,
+    region: process.env.S3_REGION
   }
 }
 
@@ -47,6 +49,7 @@ function generateFileName(key){
  * can be easily identified
  */
 function writeToFilesystem(inputStream, fileName, cb){
+  fileName = path.join(config.storageRoot, generateFileName(appKey))
   var tempFileName = fileName + ".inproc";
   var finalFileName = fileName; 
   var outputStream = fs.createWriteStream(tempFileName);
@@ -68,6 +71,16 @@ function isS3ConfigValid(){
  * the config.s3 object )
  */
 function writeToS3(inputStream, fileName, cb){
+  var putConfig = {
+    Key: fileName,
+    Bucket: config.s3.bucket,
+    Body: inputStream,
+    ContentLength: parseInt(inputStream.headers['content-length'], 10),
+    ContentType: inputStream.get('content-type')
+  };
+  log.debug("dest bucket: %s key: %s", putConfig.Bucket, putConfig.Key);
+  var s3 = new AWS.S3();
+  s3.putObject(putConfig, cb);
 }
 
 var app = express();
@@ -89,9 +102,12 @@ app.post('/archive', function(req, res){
     res.status(500).send({message:"need to provide a key in the querystring"});
     return;
   }
-  var fileName = path.join(config.storageRoot, generateFileName(appKey))
-  writeToFilesystem(req, fileName, function(err){
+  //var fileName = path.join(config.storageRoot, generateFileName(appKey))
+  var fileName = generateFileName(appKey);
+  writeToS3(req, fileName, function(err, response){
     if (err){
+      log.error(err);
+      log.error(response);
       return res.status(500).send({message:err});
     } else {
       return res.send({message: "ok"});
@@ -113,6 +129,7 @@ if (config.storageRoot) { // we're gonna use a file system storage location
     log.error("invalid s3 configuration");
     process.exit(2); 
   }
+  AWS.config.region = config.s3.region;
   config.storageSystem = "s3";
 }
 
